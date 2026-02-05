@@ -3,7 +3,7 @@
 
 针对 Google Gemini 网页版 (gemini.google.com) 的性能优化脚本。主要用于解决在生成大量代码或长文本时，浏览器主线程因高频 DOM 操作和语法高亮渲染导致的严重卡顿、掉帧以及系统级无响应问题。
 
-![Version](https://img.shields.io/badge/version-1.0-blue) ![Author](https://img.shields.io/badge/author-KanameMadoka520-purple) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-1.2-blue) ![Author](https://img.shields.io/badge/author-KanameMadoka520-purple) ![License](https://img.shields.io/badge/license-MIT-green)
 
 
 即便在使用顶级硬件（如 Ryzen 9 9950X3D+5090D）的情况下，原生网页的渲染机制仍可导致页面乃至整个系统卡死，直到回答输出完毕。即使页面只使用单核处理也是如此。
@@ -14,6 +14,7 @@
 * **一键防卡顿模式**：提供一个悬浮开关，开启后强制简化代码块渲染，极大降低 CPU/GPU 负载。
 * **渲染隔离**：利用 CSS `contain` 和 `content-visibility` 属性，将代码块的布局计算与主页面隔离。
 * **DOM 降维**：在生成过程中暂时隐藏复杂的语法高亮节点，仅显示纯文本，消除重排 (Reflow) 和重绘 (Repaint) 压力。
+* **原生 DOM 构建**：完全摒弃 `innerHTML` 写法，符合 Google 严格的 CSP 安全策略，完美修复 Edge 浏览器不显示的问题。
 * **可拖动悬浮窗**：控制按钮可以随意拖拽到页面任何位置，避免遮挡内容。
 * **位置记忆**：脚本会自动保存按钮的屏幕坐标，刷新页面后位置不重置。
 * **智能交互**：自动区分“点击”与“拖拽”操作，防止误触。
@@ -77,10 +78,17 @@ content-visibility: auto !important;
 * 若位移绝对值大于 3 像素，标记为 **拖拽** 行为，鼠标松开时仅保存位置。
 * 若位移小于等于 3 像素，标记为 **点击** 行为，触发开关逻辑。
 
+### 5. 安全策略适配 (Trusted Types & CSP)
+
+针对 Edge 和新版 Chrome 对 `innerHTML` 的严格安全限制（Trusted Types），重构了 UI 生成逻辑：
+
+* **纯 DOM API 构建**：完全使用 `document.createElement` 和 `appendChild` 组装界面，不再通过字符串注入 HTML。
+* **合规性**：这种方式绕过了浏览器的 HTML 字符串解析拦截，消除了潜在的 XSS 风险，符合 Gemini 站点的 CSP 策略，确保脚本在任何严格安全配置的浏览器（特别是 Edge）中均能正常加载。
+
 ## 兼容性
 
-* **浏览器**：Chrome, Edge, Firefox, Safari (需支持 Tampermonkey)。
-* **系统**：Windows, macOS, Linux。
++ * **浏览器**：Chrome, Edge (已解决 CSP 拦截问题), Firefox, Safari (需支持 Tampermonkey)。
+  * **系统**：Windows, macOS, Linux。
 * **限制**：依赖浏览器对 `contain` 和 `content-visibility` CSS 属性的支持（现代浏览器均已支持）。
 
 ## 许可证

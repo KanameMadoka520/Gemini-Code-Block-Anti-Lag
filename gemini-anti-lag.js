@@ -1,12 +1,12 @@
 // ==UserScript==
-// @name         Gemini Anti-Lag & Performance Booster
+// @name         Gemini Anti-Lag & Performance Booster (Fixed)
 // @namespace    http://tampermonkey.net/
-// @version      1.2
-// @description  为 Gemini 网页版增加一个悬浮开关，开启后通过 CSS 强力限制渲染开销，解决生成长代码时的卡顿问题。
-// @author       KanameMadoka520
+// @version      1.3
+// @description  为 Gemini 网页版增加一个悬浮开关，解决长代码卡顿。修复Edge兼容性与拖拽逻辑。
+// @author       Gemini_Helper
 // @match        https://gemini.google.com/*
 // @grant        GM_addStyle
-// @run-at       document-end
+// @run-at       document-start
 // ==/UserScript==
 
 (function() {
@@ -27,7 +27,7 @@
 
     // 核心优化 CSS
     const optimizationCSS = `
-        body.gemini-optimized-mode pre,
+        body.gemini-optimized-mode pre, 
         body.gemini-optimized-mode code {
             contain: strict !important;
             content-visibility: auto !important;
@@ -112,7 +112,7 @@
         div.style.left = config.posX + 'px';
         div.style.top = config.posY + 'px';
         div.innerHTML = `<div id="gemini-lag-status-dot"></div><span id="gemini-lag-text">加载中...</span>`;
-
+        
         (document.body || document.documentElement).appendChild(div);
         applyState();
 
