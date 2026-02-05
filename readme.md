@@ -3,6 +3,9 @@
 
 针对 Google Gemini 网页版 (gemini.google.com) 的性能优化脚本。主要用于解决在生成大量代码或长文本时，浏览器主线程因高频 DOM 操作和语法高亮渲染导致的严重卡顿、掉帧以及系统级无响应问题。
 
+![Version](https://img.shields.io/badge/version-1.0-blue) ![Author](https://img.shields.io/badge/author-KanameMadoka520-purple) ![License](https://img.shields.io/badge/license-MIT-green)
+
+
 即便在使用顶级硬件（如 Ryzen 9 9950X3D+5090D）的情况下，原生网页的渲染机制仍可导致页面乃至整个系统卡死，直到回答输出完毕。即使页面只使用单核处理也是如此。
 本脚本通过 CSS 渲染隔离和 DOM 简化策略，显著降低资源占用。
 
