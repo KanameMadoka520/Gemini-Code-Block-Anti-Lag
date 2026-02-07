@@ -1,96 +1,77 @@
+# Gemini Code Block Anti-Lag
 
-# Gemini Anti-Lag & Performance Booster
+![Version](https://img.shields.io/badge/version-0.1beta-blue) 
+![Language](https://img.shields.io/badge/language-JavaScript-F7DF1E?logo=javascript&logoColor=black)
+![Manager](https://img.shields.io/badge/Manager-Tampermonkey-29a329?logo=tampermonkey&logoColor=white)
+![Target](https://img.shields.io/badge/Target-Google%20Gemini-8E75B2?logo=google&logoColor=white)
+![Author](https://img.shields.io/badge/author-KanameMadoka520-purple) ![License](https://img.shields.io/badge/license-MIT-green)
 
-针对 Google Gemini 网页版 (gemini.google.com) 的性能优化脚本。主要用于解决在生成大量代码或长文本时，浏览器主线程因高频 DOM 操作和语法高亮渲染导致的严重卡顿、掉帧以及系统级无响应问题。
+这是一个针对 Google Gemini 网页版的性能优化脚本。旨在解决 Gemini 在输出长代码（通常超过 1000 行）时，因前端语法高亮渲染机制导致的浏览器严重卡顿、页面无响应及鼠标操作延迟问题。
 
-![Version](https://img.shields.io/badge/version-1.2-blue) ![Author](https://img.shields.io/badge/author-KanameMadoka520-purple) ![License](https://img.shields.io/badge/license-MIT-green)
-
-
-即便在使用顶级硬件（如 Ryzen 9 9950X3D+5090D）的情况下，原生网页的渲染机制仍可导致页面乃至整个系统卡死，直到回答输出完毕。即使页面只使用单核处理也是如此。
-本脚本通过 CSS 渲染隔离和 DOM 简化策略，显著降低资源占用。
+即使在使用顶级硬件（如 AMD Ryzen 9 9950X3D +5090d）的情况下，原生网页在处理大量流式代码生成时仍可能因主线程阻塞而卡死。本脚本通过暂时简化 DOM 结构，显著降低渲染开销。
 
 ## 功能特性
 
-* **一键防卡顿模式**：提供一个悬浮开关，开启后强制简化代码块渲染，极大降低 CPU/GPU 负载。
-* **渲染隔离**：利用 CSS `contain` 和 `content-visibility` 属性，将代码块的布局计算与主页面隔离。
-* **DOM 降维**：在生成过程中暂时隐藏复杂的语法高亮节点，仅显示纯文本，消除重排 (Reflow) 和重绘 (Repaint) 压力。
-* **原生 DOM 构建**：完全摒弃 `innerHTML` 写法，符合 Google 严格的 CSP 安全策略，完美修复 Edge 浏览器不显示的问题。
-* **可拖动悬浮窗**：控制按钮可以随意拖拽到页面任何位置，避免遮挡内容。
-* **位置记忆**：脚本会自动保存按钮的屏幕坐标，刷新页面后位置不重置。
-* **智能交互**：自动区分“点击”与“拖拽”操作，防止误触。
+* **防卡顿模式**：在代码生成过程中，将复杂的代码块临时替换为纯文本节点。这能将浏览器的渲染压力降低 99%，确保在生成数千行代码时页面依然丝般顺滑。
+* **无损还原**：脚本内置“内存快照”机制。在简化代码前会自动备份原始数据。当你需要阅读或复制代码时，关闭开关即可完美还原代码的高亮样式，不会破坏原有内容。
+* **非侵入式设计**：提供一个简洁的悬浮按钮，支持随意拖拽，状态自动记忆，不干扰正常使用。
+
+## 使用效果对比
+
+| 状态 | 按钮显示 | 视觉效果 | 性能表现 | 适用场景 |
+| --- | --- | --- | --- | --- |
+| **开启** | 🟢 **防卡顿: ON** | **黑底白字 (纯文本)**<br>
+
+<br>移除颜色高亮，字体统一，无阴影特效。 | **极高**<br>
+
+<br>浏览器仅需渲染极少量的 DOM 节点，鼠标移动流畅，不对系统卡顿。 | 让 Gemini 写长代码、生成项目结构、或者页面已经开始卡顿无法操作时。 |
+| **关闭** | 🔴 **防卡顿: OFF** | **原生高亮 (彩色)**<br>
+
+<br>恢复 Gemini 原本的主题配色和语法高亮。 | **正常**<br>
+
+<br>浏览器恢复复杂的渲染逻辑。 | 代码生成完毕后，进行阅读、审查或复制代码时。 |
 
 ## 安装方法
 
 1. 在浏览器（Chrome/Edge/Firefox）中安装 **Tampermonkey** 或 **Violentmonkey** 扩展。
 2. 点击扩展图标，选择“添加新脚本”。
-3. 将仓库中的 `gemini-anti-lag.js` 代码完整复制并粘贴到编辑器中。
+3. 将本仓库中的 `Gemini Code Block Anti-Lag.js` 代码完整复制并粘贴到编辑器中。
 4. 保存脚本（Ctrl+S）。
-5. 刷新 Gemini 网页即可生效。
-
-## 使用指南
-
-1. **启动**：脚本加载后，页面左下角（默认位置）会出现一个深色胶囊状按钮，显示状态为 `防卡顿: OFF`。
-2. **开启优化**：在向 Gemini 提问需要生成大量代码的问题之前，点击该按钮。状态变为绿色 `防卡顿: ON`。
-3. **效果**：此时生成的代码块将失去语法高亮，背景变为深色纯文本模式。浏览器的响应速度将保持流畅，不会出现卡顿。
-4. **恢复视图**：当生成结束后，再次点击按钮切换回 `OFF` 状态，即可恢复原生的语法高亮样式以便阅读。
-5. **移动按钮**：按住按钮即可将其拖拽到屏幕任意位置。松开鼠标后位置自动保存。
+5. **重要提示：安装完成后，请刷新一次 Gemini 页面以加载配置。**
 
 ## 技术实现原理
 
-Gemini 网页版在流式输出长代码时，会频繁触发 DOM 更新。原生的高亮渲染需要为每个代码 token 生成嵌套的 `<span>` 标签并计算样式，这在单线程的 JavaScript 环境下会迅速占满主线程。
+Gemini 网页版采用流式传输（Streaming）输出内容。每当有新的代码字符到达，前端的高亮引擎（如 Prism.js 或 Highlight.js）都会重新计算整个代码块的 Token 颜色，并创建成千上万个 `<span>` 标签。当代码量巨大时，频繁的 DOM 操作（Reflow/Repaint）会彻底占满 UI 主线程。
 
-本脚本通过以下技术手段解决该问题：
+本脚本采用了 **“物理简化 + 快照还原”** 的策略来解决此问题：
 
-### 1. CSS 渲染隔离 (CSS Containment)
+1. **监听 (Monitor)**：使用 `MutationObserver` 实时监控 DOM 树，专门锁定 `<pre>` 代码块标签。
+2. **备份 (Snapshot)**：在对节点进行任何操作前，脚本会将当前的 `innerHTML`（包含高亮结构）备份到元素的 `dataset` 属性中。
+3. **简化 (Simplify)**：强制执行 `el.textContent = el.innerText`。这一步会瞬间销毁内部所有复杂的子节点（span），只保留纯文本内容。此时浏览器的渲染复杂度从  降为 。
+4. **还原 (Restore)**：当用户关闭开关时，脚本从备份中读取原始 HTML 并重新注入，同时清除脚本施加的所有临时样式，将控制权交还给 Gemini 原生 CSS。
 
-通过给代码容器应用 `contain: strict` 属性，告知浏览器该元素的布局、样式和绘制与外部完全独立。这意味着代码块内部的 DOM 变化不会触发整个页面的回流 (Reflow)，仅限制在容器内部。
+## 注意事项
 
-```css
-contain: strict !important;
-
-```
-
-### 2. 视口渲染优化 (Content Visibility)
-
-应用 `content-visibility: auto` 属性。这允许浏览器跳过屏幕外内容的渲染计算，仅当用户滚动到该区域时才进行渲染，显著降低长对话历史的内存和计算开销。
-
-```css
-content-visibility: auto !important;
-
-```
-
-### 3. DOM 复杂度降维
-
-在开启模式下，通过 CSS 强制覆盖：
-
-* 将所有代码文字颜色统一，背景透明。
-* 强制 `display: inline`。
-* 移除阴影 (`box-shadow`) 和圆角 (`border-radius`) 等昂贵的绘制属性。
-
-这使得浏览器不需要处理复杂的层叠上下文 (Stacking Contexts) 和细粒度的文字绘制，将渲染复杂度从  降低到接近 。
-
-### 4. 交互逻辑
-
-使用欧几里得距离判断鼠标行为：
-
-* 监听 `mousedown` 记录初始坐标。
-* 监听 `mousemove` 计算位移量 `dx` 和 `dy`。
-* 若位移绝对值大于 3 像素，标记为 **拖拽** 行为，鼠标松开时仅保存位置。
-* 若位移小于等于 3 像素，标记为 **点击** 行为，触发开关逻辑。
-
-### 5. 安全策略适配 (Trusted Types & CSP)
-
-针对 Edge 和新版 Chrome 对 `innerHTML` 的严格安全限制（Trusted Types），重构了 UI 生成逻辑：
-
-* **纯 DOM API 构建**：完全使用 `document.createElement` 和 `appendChild` 组装界面，不再通过字符串注入 HTML。
-* **合规性**：这种方式绕过了浏览器的 HTML 字符串解析拦截，消除了潜在的 XSS 风险，符合 Gemini 站点的 CSP 策略，确保脚本在任何严格安全配置的浏览器（特别是 Edge）中均能正常加载。
-
-## 兼容性
-
-+ * **浏览器**：Chrome, Edge (已解决 CSP 拦截问题), Firefox, Safari (需支持 Tampermonkey)。
-  * **系统**：Windows, macOS, Linux。
-* **限制**：依赖浏览器对 `contain` 和 `content-visibility` CSS 属性的支持（现代浏览器均已支持）。
+* **流式内容的还原限制**：如果在脚本 **开启状态下** Gemini 生成了新的代码内容，这部分内容在 **关闭脚本后** 会恢复正常的背景色和字体，但可能**不会拥有颜色高亮**。这是因为为了保证不卡顿，我们在一开始就阻止了浏览器对这部分内容的高亮计算。
+* **历史内容的还原**：在脚本开启前就已经存在的历史对话代码，可以 100% 完美还原。
 
 ## 许可证
 
+本项目采用 [MIT License](https://www.google.com/search?q=LICENSE) 开源。
+
+```text
 MIT License
+
+Copyright (c) 2026 KanameMadoka520
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+```
