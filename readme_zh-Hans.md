@@ -2,13 +2,15 @@
 
 [简体中文](readme_zh-Hans.md) | [繁體中文](readme_zh-Hant.md)| [English](readme.md) 
 
-![Version](https://img.shields.io/badge/version-0.1beta-blue) 
+![Version](https://img.shields.io/badge/version-0.3--Fix-blue) 
 ![Language](https://img.shields.io/badge/language-JavaScript-F7DF1E?logo=javascript&logoColor=black)
 ![Manager](https://img.shields.io/badge/Manager-Tampermonkey-29a329?logo=tampermonkey&logoColor=white)
 ![Target](https://img.shields.io/badge/Target-Google%20Gemini-8E75B2?logo=google&logoColor=white)
 ![Author](https://img.shields.io/badge/author-KanameMadoka520-purple) ![License](https://img.shields.io/badge/license-MIT-green)
 
 这是一个针对 Google Gemini 网页版的性能优化脚本。旨在解决 Gemini 在输出长代码（通常超过 1000 行）时，因前端语法高亮渲染机制导致的浏览器严重卡顿、页面无响应及鼠标操作延迟问题。
+
+**更新 v0.3-Fix：** 脚本已重构为纯 DOM 操作模式，绕过了严格的内容安全策略（CSP）和可信类型（TrustedTypes），确保完美兼容 **Microsoft Edge** 和 Chrome 浏览器。
 
 即使在使用顶级硬件（如 AMD Ryzen 9 9950X3D + NVIDIA RTX 5090d）的情况下，原生网页在处理大量流式代码生成时仍可能因主线程阻塞而卡死。本脚本通过暂时简化 DOM 结构，显著降低渲染开销。
 ## 功能演示
@@ -36,6 +38,8 @@
 ## 功能特性
 
 * **防卡顿模式**：在代码生成过程中，将复杂的代码块临时替换为纯文本节点。这能将浏览器的渲染压力降低 99%，确保在生成数千行代码时页面依然丝般顺滑。
+* **Edge & Chrome 双兼容**：v0.3 版本采用了**纯 DOM 构建方式**（不使用 `innerHTML` 构建 UI），完美绕过了此前导致 Microsoft Edge 报错的严格安全策略（TrustedTypes）。
+* **强力 UI 挂载**：控制按钮现在直接挂载到 `<html>` 根节点并配合心跳检测机制。这防止了 Gemini（作为单页应用）在刷新 `<body>` 内容时导致按钮消失的问题。
 * **无损还原**：脚本内置“内存快照”机制。在简化代码前会自动备份原始数据。当你需要阅读或复制代码时，关闭开关即可完美还原代码的高亮样式，不会破坏原有内容。
 * **非侵入式设计**：提供一个简洁的悬浮按钮，支持随意拖拽，状态自动记忆，不干扰正常使用。
 
@@ -62,8 +66,9 @@ Gemini 网页版采用流式传输（Streaming）输出内容。每当有新的�
 
 1. **监听 (Monitor)**：使用 `MutationObserver` 实时监控 DOM 树，专门锁定 `<pre>` 代码块标签。
 2. **备份 (Snapshot)**：在对节点进行任何操作前，脚本会将当前的 `innerHTML`（包含高亮结构）备份到元素的 `dataset` 属性中。
-3. **简化 (Simplify)**：强制执行 `el.textContent = el.innerText`。这一步会瞬间销毁内部所有复杂的子节点（span），只保留纯文本内容。此时浏览器的渲染复杂度从  降为 。
-4. **还原 (Restore)**：当用户关闭开关时，脚本从备份中读取原始 HTML 并重新注入，同时清除脚本施加的所有临时样式，将控制权交还给 Gemini 原生 CSS。
+3. **简化 (Simplify)**：强制执行 `el.textContent = el.innerText`。这一步会瞬间销毁内部所有复杂的子节点（span），只保留纯文本内容。此时浏览器的渲染复杂度从 $O(n)$ 降为 $O(1)$。
+4. **CSP 绕过 (v0.3 新增)**：为了支持 Edge，UI 界面完全使用 `document.createElement` 和 `appendChild` 构建。避免了界面注入时的 `innerHTML` 操作，从而符合严格的可信类型（TrustedTypes）安全策略。
+5. **还原 (Restore)**：当用户关闭开关时，脚本从备份中读取原始 HTML 并重新注入，同时清除脚本施加的所有临时样式，将控制权交还给 Gemini 原生 CSS。
 
 ## 注意事项
 
@@ -88,5 +93,4 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 ```

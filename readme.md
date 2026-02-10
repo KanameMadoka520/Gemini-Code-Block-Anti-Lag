@@ -2,13 +2,15 @@
 
 [简体中文](readme_zh-Hans.md) | [繁體中文](readme_zh-Hant.md)| [English](readme.md) 
 
-![Version](https://img.shields.io/badge/version-0.1beta-blue) 
+![Version](https://img.shields.io/badge/version-0.3--Fix-blue) 
 ![Language](https://img.shields.io/badge/language-JavaScript-F7DF1E?logo=javascript&logoColor=black)
 ![Manager](https://img.shields.io/badge/Manager-Tampermonkey-29a329?logo=tampermonkey&logoColor=white)
 ![Target](https://img.shields.io/badge/Target-Google%20Gemini-8E75B2?logo=google&logoColor=white)
 ![Author](https://img.shields.io/badge/author-KanameMadoka520-purple) ![License](https://img.shields.io/badge/license-MIT-green)
 
 This is a performance optimization script for the Google Gemini web version. It addresses the severe browser lag, page unresponsiveness, and cursor latency caused by the frontend syntax highlighting mechanism when Gemini outputs long code blocks (typically exceeding 1000 lines).
+
+**Update v0.3-Fix:** The script has been rewritten using pure DOM operations to bypass strict Content Security Policies (CSP) and TrustedTypes, ensuring perfect compatibility with **Microsoft Edge** and Chrome.
 
 Even with top-tier hardware (e.g., AMD Ryzen 9 9950X3D + NVIDIA RTX 5090d), the native web page can still freeze due to main thread blocking when processing massive streaming code generation. This script significantly reduces rendering overhead by temporarily simplifying the DOM structure.
 
@@ -32,6 +34,8 @@ If you wish to restore the original rendering style, click the switch again to t
 ## Features
 
 * **Anti-Lag Mode**: During code generation, complex code blocks are temporarily replaced with plain text nodes. This reduces browser rendering pressure by 99%, ensuring a silky-smooth experience even when generating thousands of lines of code.
+* **Edge & Chrome Compatible**: v0.3 utilizes a **pure DOM construction method** (no `innerHTML` for UI), perfectly bypassing strict security policies (TrustedTypes) that previously caused issues in Microsoft Edge.
+* **Resilient UI Mounting**: The control button now mounts directly to the `<html>` root node with a heartbeat mechanism. This prevents the button from disappearing when Gemini (a Single Page Application) refreshes the `<body>` content.
 * **Lossless Restoration**: Built-in "Memory Snapshot" mechanism. Before simplifying code, it automatically backs up the original data. When you need to read or copy code, simply turn the switch OFF to perfectly restore the code's highlighting style without destroying content.
 * **Non-Intrusive Design**: Provides a simple floating button that supports dragging and remembers its state, without interfering with normal usage.
 
@@ -59,7 +63,8 @@ This script uses a **"Physical Simplification + Snapshot Restoration"** strategy
 1.  **Monitor**: Uses `MutationObserver` to monitor the DOM tree in real-time, specifically locking onto `<pre>` code block tags.
 2.  **Snapshot**: Before any operation, the script backs up the current `innerHTML` (containing the highlight structure) to the element's `dataset` attribute.
 3.  **Simplify**: Forces `el.textContent = el.innerText`. This instantly destroys all complex child nodes (`span`), leaving only plain text. This reduces browser rendering complexity from $O(n)$ to $O(1)$.
-4.  **Restore**: When the user switches OFF, the script reads the original HTML from the backup and reinjects it, removing temporary styles and returning control to Gemini's native CSS.
+4.  **CSP Bypass (New in v0.3)**: To support Edge, the UI is constructed entirely using `document.createElement` and `appendChild`. It avoids `innerHTML` injection for the interface, complying with strict TrustedTypes security policies.
+5.  **Restore**: When the user switches OFF, the script reads the original HTML from the backup and reinjects it, removing temporary styles and returning control to Gemini's native CSS.
 
 ## Notes
 
