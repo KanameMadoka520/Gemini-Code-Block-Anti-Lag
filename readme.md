@@ -1,5 +1,5 @@
 # Gemini Code Block Anti-Lag
-
+QWQ
 [简体中文](readme_zh-Hans.md) | [繁體中文](readme_zh-Hant.md)| [English](readme.md) 
 
 ![Version](https://img.shields.io/badge/version-0.3--Fix-blue) 
