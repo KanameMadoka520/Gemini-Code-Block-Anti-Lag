@@ -2,7 +2,7 @@
 
 [简体中文](readme_zh-Hans.md) | [繁體中文](readme_zh-Hant.md)| [English](readme.md) 
 
-![Version](https://img.shields.io/badge/version-0.3--Fix-blue) 
+![Version](https://img.shields.io/badge/version-0.4-blue) 
 ![Language](https://img.shields.io/badge/language-JavaScript-F7DF1E?logo=javascript&logoColor=black)
 ![Manager](https://img.shields.io/badge/Manager-Tampermonkey-29a329?logo=tampermonkey&logoColor=white)
 ![Target](https://img.shields.io/badge/Target-Google%20Gemini-8E75B2?logo=google&logoColor=white)
@@ -10,6 +10,7 @@
 
 這是一個針對 Google Gemini 網頁版的效能最佳化腳本。旨在解決 Gemini 在輸出長程式碼（通常超過 1000 行）時，因前端語法高亮渲染機制導致的瀏覽器嚴重卡頓、頁面無回應及滑鼠操作延遲問題。
 
+**更新 v0.4：** 新增了獨立的「↺ 恢復排版」功能按鍵，並且點擊時會自動關閉防卡頓的處理，避免處理衝突，並修復了原版恢復程式碼時可能吞掉新生成程式碼的 Bug。
 **更新 v0.3-Fix：** 腳本已重構為純 DOM 操作模式，繞過了嚴格的內容安全策略（CSP）和可信類型（TrustedTypes），確保完美相容 **Microsoft Edge** 和 Chrome 瀏覽器。
 
 即使在使用頂級硬體（如 AMD Ryzen 9 9950X3D + NVIDIA RTX 5090d）的情況下，原生網頁在處理大量串流程式碼生成時仍可能因主執行緒阻塞而卡死。本腳本透過暫時簡化 DOM 結構，顯著降低渲染開銷。
@@ -26,7 +27,7 @@
 等待 Gemini 工作完畢後，它會自動把剛剛暫停顯示的內容全部顯示出來，你可以查看生成的全部結果。
 ![Demo3](assets/Demo3.png)
 
-如果你希望恢復頁面的原本渲染方式，可以再點擊一次腳本的開關按鈕，使之關閉（顯示為「防卡頓 OFF」）。
+如果你希望恢復頁面的原本渲染方式，可以點擊**「↺ 恢復排版」**按鈕，它會自動將防卡頓開關關閉（顯示為「防卡頓 OFF」）並恢復排版。
 ![Demo4](assets/Demo4.png)
 
 不過如你所見，html 程式碼區塊在恢復後也沒有**顏色高亮**，這不是 bug，而是我們腳本方案的取捨。這是因為為了保證不卡頓，我們在一開始就阻止了瀏覽器對這部分內容的高亮計算。
@@ -34,14 +35,14 @@
 
 目前你只能依靠重新整理（F5）頁面來恢復**顏色高亮** qwq
 
-但目前對於 **Markdown、YAML** 等程式碼區塊，並不會受到影響，**顏色高亮**仍能在腳本 OFF 後恢復。
+但目前對於 **Markdown、YAML** 等程式碼區塊，並不會受到影響，**顏色高亮**仍能在腳本恢復排版後恢復。
 
 ## 功能特性
 
 * **防卡頓模式**：在程式碼生成過程中，將複雜的程式碼區塊臨時替換為純文字節點。這能將瀏覽器的渲染壓力降低 99%，確保在生成數千行程式碼時頁面依然絲般順滑。
 * **Edge & Chrome 雙相容**：v0.3 版本採用了**純 DOM 建構方式**（不使用 `innerHTML` 建構 UI），完美繞過了此前導致 Microsoft Edge 報錯的嚴格安全策略（TrustedTypes）。
 * **強力 UI 掛載**：控制按鈕現在直接掛載到 `<html>` 根節點並配合心跳檢測機制。這防止了 Gemini（作為單頁應用）在重新整理 `<body>` 內容時導致按鈕消失的問題。
-* **無損還原**：腳本內建「記憶體快照」機制。在簡化程式碼前會自動備份原始資料。當你需要閱讀或複製程式碼時，關閉開關即可完美還原程式碼的高亮樣式，不會破壞原有內容。
+* **無損還原**：腳本內建「記憶體快照」機制。在簡化程式碼前會自動備份原始資料。當你需要閱讀或複製程式碼時，點擊**「↺ 恢復排版」**按鈕（會自動關閉開關）即可完美還原程式碼的高亮樣式，不會破壞原有內容。
 * **非侵入式設計**：提供一個簡潔的懸浮按鈕，支援隨意拖曳，狀態自動記憶，不干擾正常使用。
 
 ## 使用效果對比
@@ -69,11 +70,11 @@ Gemini 網頁版採用串流傳輸（Streaming）輸出內容。每當有新的�
 2. **備份 (Snapshot)**：在對節點進行任何操作前，腳本會將當前的 `innerHTML`（包含高亮結構）備份到元素的 `dataset` 屬性中。
 3. **簡化 (Simplify)**：強制執行 `el.textContent = el.innerText`。這一步會瞬間銷毀內部所有複雜的子節點（span），只保留純文字內容。此時瀏覽器的渲染複雜度從 $O(n)$ 降為 $O(1)$。
 4. **CSP 繞過 (v0.3 新增)**：為了支援 Edge，UI 介面完全使用 `document.createElement` 和 `appendChild` 建構。避免了介面注入時的 `innerHTML` 操作，從而符合嚴格的可信類型（TrustedTypes）安全策略。
-5. **還原 (Restore)**：當使用者關閉開關時，腳本從備份中讀取原始 HTML 並重新注入，同時清除腳本施加的所有臨時樣式，將控制權交還給 Gemini 原生 CSS。
+5. **還原 (Restore)**：當使用者點擊恢復排版時，腳本從備份中讀取原始 HTML 並重新注入，同時清除腳本施加的所有臨時樣式，將控制權交還給 Gemini 原生 CSS。
 
 ## 注意事項
 
-* **串流內容的還原限制**：如果在腳本 **開啟狀態下** Gemini 生成了新的程式碼內容，這部分內容在 **關閉腳本後** 會恢復正常的背景色和字體，但可能**不會擁有顏色高亮**。這是因為為了保證不卡頓，我們在一開始就阻止了瀏覽器對這部分內容的高亮計算。
+* **串流內容的還原限制**：如果在腳本 **開啟狀態下** Gemini 生成了新的程式碼內容，這部分內容在 **恢復排版後** 會恢復正常的背景色和字體，但可能**不會擁有顏色高亮**。這是因為為了保證不卡頓，我們在一開始就阻止了瀏覽器對這部分內容的高亮計算。
 * **歷史內容的還原**：在腳本開啟前就已經存在的歷史對話程式碼，可以 100% 完美還原。
 
 ## 授權條款 (License)
@@ -94,4 +95,3 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-```

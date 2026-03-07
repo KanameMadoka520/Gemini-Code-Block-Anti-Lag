@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Gemini 代码块防卡顿 (Edge/Chrome 纯DOM版)
 // @namespace    http://tampermonkey.net/
-// @version      0.3-Fix
-// @description  解决 Gemini 生成大量代码时网页严重卡顿的问题。不使用 innerHTML，绕过 Edge 安全策略。
+// @version      0.4
+// @description  解决 Gemini 生成大量代码时网页严重卡顿的问题。修复拖拽后按钮失效的Bug。
 // @author       KanameMadoka520
 // @match        https://gemini.google.com/*
 // @grant        GM_addStyle
@@ -12,11 +12,11 @@
 (function() {
     'use strict';
 
-    console.log('Gemini Anti-Lag: 脚本已注入');
+    console.log('Gemini Anti-Lag: 脚本已注入 (v0.5 修复拖拽锁死 Bug)');
 
     // === 1. 配置 ===
-    const CONFIG_KEY = 'gemini_antilag_config_kaname_v3';
-    let config = { isEnabled: false, posX: window.innerWidth - 150, posY: 80 };
+    const CONFIG_KEY = 'gemini_antilag_config_kaname_v4';
+    let config = { isEnabled: false, posX: window.innerWidth - 220, posY: 80 };
     try {
         const saved = localStorage.getItem(CONFIG_KEY);
         if (saved) config = { ...config, ...JSON.parse(saved) };
@@ -45,38 +45,55 @@
         /* 按钮样式 */
         #gemini-lag-controller {
             position: fixed !important;
-            top: 0; left: 0; /* 初始定位，由JS覆盖 */
+            top: 0; left: 0;
             z-index: 2147483647 !important;
             background: #2d2d2d;
             color: #e0e0e0;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 24px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             font-family: system-ui, sans-serif;
             font-size: 13px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            cursor: pointer;
+            gap: 10px;
             user-select: none;
             border: 1px solid #555;
             width: fit-content;
             height: fit-content;
         }
+
+        .lag-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 16px;
+            transition: background 0.2s;
+        }
+        .lag-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
         #gemini-lag-status-dot {
-            width: 10px;
-            height: 10px;
+            width: 10px; height: 10px;
             border-radius: 50%;
             background-color: #f44336;
             transition: background-color 0.3s;
         }
-        #gemini-lag-controller.active {
-            background: #1b3a25;
-            border-color: #00e676;
-        }
-        #gemini-lag-controller.active #gemini-lag-status-dot {
+
+        .lag-btn.active #gemini-lag-status-dot {
             background-color: #00e676;
             box-shadow: 0 0 5px #00e676;
+        }
+
+        .lag-btn-restore {
+            color: #ff9800;
+            font-weight: bold;
+        }
+        .lag-btn-restore:active { transform: scale(0.95); }
+
+        .lag-divider {
+            width: 1px; height: 16px; background: #555; cursor: move; padding: 0 4px;
         }
     `;
 
@@ -95,11 +112,11 @@
     // === 3. 逻辑处理 ===
     function simplifyElement(el) {
         if (el.dataset.optimized === 'true') return;
-        // 备份
+        // 备份初始状态
         if (!el.dataset.backup && el.textContent.length > 0) {
             el.dataset.backup = el.innerHTML;
         }
-        // 简化：纯文本替换
+        // 简化：纯文本替换，强行干掉引发卡顿的高亮节点
         if (el.children.length > 0) {
             el.textContent = el.innerText;
             el.dataset.optimized = 'true';
@@ -107,7 +124,9 @@
     }
 
     function restoreElement(el) {
-        if (el.dataset.backup && Math.abs(el.textContent.length - el.dataset.backup.length) < 5000) {
+        // 修复原版 Bug：如果当前文本长度远大于备份长度，说明代码是在开启防卡顿期间生成的。
+        // 此时绝对不能用旧备份覆盖，否则会吞掉几千行代码，直接保留纯文本即可。
+        if (el.dataset.backup && (el.textContent.length - el.dataset.backup.length) < 50) {
             el.innerHTML = el.dataset.backup;
         }
         delete el.dataset.optimized;
@@ -132,45 +151,92 @@
         });
     });
 
-    // === 4. UI 创建 (纯 DOM 操作，不含 innerHTML) ===
+    // === 4. UI 创建 ===
     function createController() {
         if (document.getElementById('gemini-lag-controller')) return;
 
-        console.log('Gemini Anti-Lag: 创建UI中...');
-
-        // 1. 创建容器
         const container = document.createElement('div');
         container.id = 'gemini-lag-controller';
 
-        // 2. 创建红绿灯
+        // --- 防卡顿开关按钮 ---
+        const btnToggle = document.createElement('div');
+        btnToggle.className = 'lag-btn';
+        if (config.isEnabled) btnToggle.classList.add('active');
+
         const dot = document.createElement('div');
         dot.id = 'gemini-lag-status-dot';
 
-        // 3. 创建文字
         const text = document.createElement('span');
         text.id = 'gemini-lag-text';
         text.textContent = config.isEnabled ? '防卡顿: ON' : '防卡顿: OFF';
 
-        // 4. 组装
-        container.appendChild(dot);
-        container.appendChild(text);
+        btnToggle.appendChild(dot);
+        btnToggle.appendChild(text);
 
-        // 5. 设置初始状态
-        if (config.isEnabled) container.classList.add('active');
+        // --- 拖拽把手/分割线 ---
+        const divider = document.createElement('div');
+        divider.className = 'lag-divider';
+        divider.title = "按住拖拽";
 
-        // 6. 设置坐标
-        container.style.left = Math.min(Math.max(0, config.posX), window.innerWidth - 120) + 'px';
+        // --- 手动恢复按钮 ---
+        const btnRestore = document.createElement('div');
+        btnRestore.className = 'lag-btn lag-btn-restore';
+        btnRestore.textContent = '↺ 恢复排版';
+
+        // 组装
+        container.appendChild(btnToggle);
+        container.appendChild(divider);
+        container.appendChild(btnRestore);
+
+        // 设置坐标
+        container.style.left = Math.min(Math.max(0, config.posX), window.innerWidth - 200) + 'px';
         container.style.top = Math.min(Math.max(0, config.posY), window.innerHeight - 50) + 'px';
 
-        // 7. 绑定事件
-        // 点击切换
+        // 绑定事件
         let isDrag = false;
-        container.addEventListener('click', () => {
-            if (!isDrag) toggleMode(container, text);
+
+        // 切换防卡顿模式
+        btnToggle.addEventListener('click', () => {
+            if (isDrag) return;
+            config.isEnabled = !config.isEnabled;
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+
+            if (config.isEnabled) {
+                btnToggle.classList.add('active');
+                document.body.classList.add('gemini-optimized');
+                text.textContent = '防卡顿: ON';
+                document.querySelectorAll('pre').forEach(simplifyElement);
+            } else {
+                btnToggle.classList.remove('active');
+                // 仅关闭全局强行覆盖的 CSS，不还原具体 DOM 节点，除非点击恢复按钮
+                document.body.classList.remove('gemini-optimized');
+                text.textContent = '防卡顿: OFF';
+            }
         });
 
-        // 拖拽逻辑
-        container.addEventListener('mousedown', (e) => {
+        // 手动恢复按钮事件
+        btnRestore.addEventListener('click', () => {
+            if (isDrag) return;
+            // 确保防卡顿状态关闭，避免刚恢复又被拍平
+            if (config.isEnabled) {
+                config.isEnabled = false;
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+                btnToggle.classList.remove('active');
+                text.textContent = '防卡顿: OFF';
+                document.body.classList.remove('gemini-optimized');
+            }
+
+            // 执行所有节点的恢复逻辑
+            document.querySelectorAll('pre').forEach(restoreElement);
+
+            // 简单的点击反馈
+            const originalText = btnRestore.textContent;
+            btnRestore.textContent = '✓ 已恢复';
+            setTimeout(() => { btnRestore.textContent = originalText; }, 1500);
+        });
+
+        // 拖拽逻辑 (绑定在分割线上，避免误触按钮)
+        divider.addEventListener('mousedown', (e) => {
             isDrag = false;
             const startX = e.clientX;
             const startY = e.clientY;
@@ -192,40 +258,22 @@
                     config.posY = parseFloat(container.style.top);
                     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
                 }
+                // 【已修复】重置拖拽状态，释放按钮的点击拦截
+                setTimeout(() => { isDrag = false; }, 0);
             };
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
         });
 
-        // 8. 强力挂载：直接挂载到 HTML 根元素，防止 Body 被清空
         document.documentElement.appendChild(container);
-    }
-
-    function toggleMode(btn, txt) {
-        config.isEnabled = !config.isEnabled;
-        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-
-        if (config.isEnabled) {
-            btn.classList.add('active');
-            document.body.classList.add('gemini-optimized');
-            txt.textContent = '防卡顿: ON';
-            document.querySelectorAll('pre').forEach(simplifyElement);
-        } else {
-            btn.classList.remove('active');
-            document.body.classList.remove('gemini-optimized');
-            txt.textContent = '防卡顿: OFF';
-            document.querySelectorAll('pre').forEach(restoreElement);
-        }
     }
 
     // === 5. 启动 ===
     function main() {
         createController();
-        // 无论 body 是否存在，先挂载 UI 到 html，然后等 body 出来挂载观察者
         if (document.body) {
              observer.observe(document.body, { childList: true, subtree: true, characterData: true });
         } else {
-            // 如果 body 还没出来，监听 html 的变化直到 body 出现
             const tempOb = new MutationObserver(() => {
                 if (document.body) {
                     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -236,17 +284,14 @@
         }
     }
 
-    // 只要 DOM 解析完成就开始，不必等图片加载
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', main);
     } else {
         main();
     }
 
-    // 心跳检测：防止 Edge 杀掉节点
     setInterval(() => {
         if (!document.getElementById('gemini-lag-controller')) {
-            console.log('Gemini Anti-Lag: 重新挂载UI');
             createController();
         }
     }, 2000);
